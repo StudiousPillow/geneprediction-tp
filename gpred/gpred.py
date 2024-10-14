@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Union, Optional
 from textwrap import fill
 
-
 def isfile(path: str) -> Path:  # pragma: no cover
     """Check if path is an existing file.
 
@@ -93,9 +92,12 @@ def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None
     :param start: (int) Start position of the research
     :return: (int) If exist, position of the stop codon. Otherwise None. 
     """
-    matchobj = stop_regex.search(sequence,  start)
+    
+    matchobj = stop_regex.findall(sequence,  start)
     if matchobj==None:
         return(None)
+    for match in matchobj:
+        
     return(matchobj.span()[0])
 
 
@@ -145,7 +147,7 @@ def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shin
             stop = find_stop(stop_regex, sequence, current_pos)
             # print("stop",current_pos)
             if stop != None:
-                if stop - current_pos > min_gap:
+                if stop - current_pos > min_gene_len:
                     # print("good size")
                     if has_shine_dalgarno(shine_regex, sequence, current_pos, max_shine_dalgarno_distance):
                         # print("has_shine_dalgarno")
@@ -173,9 +175,7 @@ def write_genes_pos(predicted_genes_file: Path, probable_genes: List[List[int]])
             predict_genes_writer.writerow(["Start", "Stop"])
             print(probable_genes)
             for pos in probable_genes:
-                # print(pos)
-                # print("test")
-                predict_genes_writer.writerows(pos)
+                predict_genes_writer.writerow(pos)
     except IOError:
         sys.exit("Error cannot open {}".format(predicted_genes_file))
 
@@ -232,29 +232,36 @@ def main() -> None: # pragma: no cover
     start_regex = re.compile('AT[TG]|[ATCG]TG')
     stop_regex = re.compile('TA[GA]|TGA')
     # Shine AGGAGGUAA
-    #AGGA ou GGAGG 
+    #AGGA ou GGAGG
     shine_regex = re.compile('A?G?GAGG|GGAG|GG.{1}GG')
     # Arguments
     # args = get_arguments()
     # Let us do magic in 5' to 3'
     
-    fastasequence = read_fasta("data/listeria.fna")
-    # print(re.search(fastasequence, "\n"))
-    # print(fastasequence[::-1])
+    seq_with_stop = "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA"
+    seq_without_stop = seq_with_stop[:-3]
+    res_stop = find_stop(stop_regex, seq_with_stop, 3)
+    res_no_stop = find_stop(stop_regex, seq_without_stop, 3)
+    print(res_stop, res_no_stop)
+    print(find_stop(stop_regex, "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA",3))
     
-    pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 10, max_shine_dalgarno_distance = 50, min_gap = 5)
-    reversesequence = reverse_complement(fastasequence)
+    
+    
+    # fastasequence = read_fasta("data/listeria.fna")
+    # # print(re.search(fastasequence, "\n"))
+    # # print(fastasequence[::-1])
+    
+    # pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    # reversesequence = reverse_complement(fastasequence)
 
-    # print(re.search(fastasequence, "\\n"))
-    pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 10, max_shine_dalgarno_distance = 50, min_gap = 5)
-    pred3 = []
-    for pred in pred3r:
-        pred3.append([pred[1],pred[0]])
-    all_pred = pred5 + pred3
-    all_pred = sorted(all_pred, key=lambda pos: pos[0])
-    print(all_pred)
+    # # print(re.search(fastasequence, "\\n"))
+    # pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    # pred3 = []
+    # for pred in pred3r:
+    #     pred3.append([len(fastasequence)-pred[1],len(fastasequence)-pred[0]])
+    # all_pred = pred5 + pred3
+    # all_pred = sorted(all_pred, key=lambda pos: pos[0])
     # write_genes_pos("data/predict_gene.csv", all_pred)
-    
     # Don't forget to uncomment !!!
     # Call these function in the order that you want
     # We reverse and complement
