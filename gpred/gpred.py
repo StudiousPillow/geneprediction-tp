@@ -122,8 +122,6 @@ def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shin
     if matchobj == None:
         return(False)
     else:
-        print(matchobj, startidx, endidx, start)
-        print(sequence)
         return(True)
 
 
@@ -155,7 +153,7 @@ def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shin
                     # print("good size")
                     if has_shine_dalgarno(shine_regex, sequence, current_pos, max_shine_dalgarno_distance):
                         # print("has_shine_dalgarno")
-                        predgene.append([current_pos,stop])
+                        predgene.append([current_pos+1,stop+3])
                         current_pos = stop + 3 + min_gap
                     else:
                         current_pos += 1
@@ -242,27 +240,20 @@ def main() -> None: # pragma: no cover
     # args = get_arguments()
     # Let us do magic in 5' to 3'
     
-    seq_without_sd = "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA"
-    seq_with_sd = "AGGAGGTAACTCAAACC" + seq_without_sd
-    seq_with_sd_too_far = "AGGAGGTAACTCAAACCGG" + seq_without_sd
-    print(has_shine_dalgarno(shine_regex, seq_with_sd_too_far, 12,16))
+    fastasequence = read_fasta("data/listeria.fna")
     
-    
-    # fastasequence = read_fasta("data/listeria.fna")
-    # # print(re.search(fastasequence, "\n"))
-    # # print(fastasequence[::-1])
-    
-    # pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
-    # reversesequence = reverse_complement(fastasequence)
+    pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    reversesequence = reverse_complement(fastasequence)
 
-    # # print(re.search(fastasequence, "\\n"))
-    # pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
-    # pred3 = []
-    # for pred in pred3r:
-    #     pred3.append([len(fastasequence)-pred[1],len(fastasequence)-pred[0]])
-    # all_pred = pred5 + pred3
-    # all_pred = sorted(all_pred, key=lambda pos: pos[0])
-    # write_genes_pos("data/predict_gene.csv", all_pred)
+    pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    pred3 = []
+    for pred in pred3r:
+        pred3.append([len(fastasequence)-pred[1],len(fastasequence)-pred[0]])
+    all_pred = pred5 + pred3
+    all_pred = sorted(all_pred, key=lambda pos: pos[0])
+    write_genes_pos("data/predict_gene.csv", all_pred)
+    
+    
     # Don't forget to uncomment !!!
     # Call these function in the order that you want
     # We reverse and complement
