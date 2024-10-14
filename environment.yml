@@ -1,0 +1,7 @@
+name: geneprediction-tp
+channels: 
+- conda-forge
+dependencies:
+- python
+- pytest
+- pytest-cov

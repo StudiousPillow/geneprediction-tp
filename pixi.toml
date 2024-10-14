@@ -1,0 +1,15 @@
+[project]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "geneprediction-tp"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.9.*"
+
+[pypi-dependencies]
+pytest = ">=8.3.3, <9"
+pytest-cov = ">=5.0.0, <6"

@@ -175,7 +175,6 @@ def write_genes_pos(predicted_genes_file: Path, probable_genes: List[List[int]])
         with open(predicted_genes_file, "w") as predict_genes:
             predict_genes_writer = csv.writer(predict_genes, delimiter=",")
             predict_genes_writer.writerow(["Start", "Stop"])
-            print(probable_genes)
             for pos in probable_genes:
                 predict_genes_writer.writerow(pos)
     except IOError:
@@ -237,21 +236,29 @@ def main() -> None: # pragma: no cover
     #AGGA ou GGAGG
     shine_regex = re.compile('A?G?GAGG|GGAG|GG.{1}GG')
     # Arguments
-    # args = get_arguments()
+    args = get_arguments()
+    print(args)
     # Let us do magic in 5' to 3'
     
-    fastasequence = read_fasta("data/listeria.fna")
+    fastasequence = read_fasta(args.genome_file)
     
-    pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, 
+                          min_gene_len=args.min_gene_len, 
+                          max_shine_dalgarno_distance = args.max_shine_dalgarno_distance, 
+                          min_gap = args.min_gap)
     reversesequence = reverse_complement(fastasequence)
-
-    pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 50, max_shine_dalgarno_distance = 16, min_gap = 40)
+    pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, 
+                           min_gene_len=args.min_gene_len, 
+                           max_shine_dalgarno_distance = args.max_shine_dalgarno_distance, 
+                           min_gap = args.min_gap)
+    
     pred3 = []
     for pred in pred3r:
         pred3.append([len(fastasequence)-pred[1],len(fastasequence)-pred[0]])
     all_pred = pred5 + pred3
     all_pred = sorted(all_pred, key=lambda pos: pos[0])
-    write_genes_pos("data/predict_gene.csv", all_pred)
+    write_genes_pos(os.path.join('results',args.predicted_genes_file), all_pred)
+    write_genes(os.path.join('results',args.fasta_file), fastasequence, pred5, reversesequence, pred3r)
     
     
     # Don't forget to uncomment !!!
