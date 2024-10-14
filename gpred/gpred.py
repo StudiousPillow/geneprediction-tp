@@ -7,6 +7,7 @@ import textwrap
 from re import Pattern
 from pathlib import Path
 from typing import List, Union, Optional
+from textwrap import fill
 
 
 def isfile(path: str) -> Path:  # pragma: no cover
@@ -61,7 +62,12 @@ def read_fasta(fasta_file: Path) -> str:
     :param fasta_file: (Path) Path to the fasta file.
     :return: (str) Sequence from the genome. 
     """
-    pass
+    fasta_file = isfile(fasta_file)
+    with open(fasta_file, 'r') as f:
+        seq = [line.rstrip() for line in f.readlines()[1:]]
+        seq = ''.join(seq)
+        assert seq.isupper(), f"sequence isn't in all caps : {seq[0:5]}"
+        return(seq)
 
 
 def find_start(start_regex: Pattern, sequence: str, start: int, stop: int) -> Union[int, None]:
@@ -73,7 +79,10 @@ def find_start(start_regex: Pattern, sequence: str, start: int, stop: int) -> Un
     :param stop: (int) Stop position of the research
     :return: (int) If exist, position of the start codon. Otherwise None. 
     """
-    pass
+    matchobj = start_regex.search(sequence, start, stop)
+    if matchobj==None:
+        return(None)
+    return(matchobj.span()[0])
 
 
 def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None]:
@@ -84,7 +93,10 @@ def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None
     :param start: (int) Start position of the research
     :return: (int) If exist, position of the stop codon. Otherwise None. 
     """
-    pass
+    matchobj = stop_regex.search(sequence,  start)
+    if matchobj==None:
+        return(None)
+    return(matchobj.span()[0])
 
 
 def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shine_dalgarno_distance: int) -> bool:
@@ -96,7 +108,17 @@ def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shin
     :param max_shine_dalgarno_distance: (int) Maximum distance of the shine dalgarno to the start position
     :return: (boolean) true -> has a shine dalgarno upstream to the gene, false -> no
     """
-    pass
+    startidx = start - max_shine_dalgarno_distance
+    endidx = start - 6
+    if start<0:
+        return(False)
+    if endidx>len(sequence)-1:
+        endidx = len(sequence)-1
+    matchobj = shine_regex.search(sequence, startidx, endidx)
+    if matchobj == None:
+        return(False)
+    else:
+        return(True)
 
 
 def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shine_regex: Pattern, 
@@ -112,7 +134,31 @@ def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shin
     :param min_gap: (int) Minimum distance between two genes.
     :return: (list) List of [start, stop] position of each predicted genes.
     """
-    pass
+    predgene = []
+    current_pos = 0
+    while len(sequence) - current_pos >= min_gap:
+        current_pos = find_start(start_regex, sequence, current_pos, len(sequence)-1)
+        # print("start",current_pos)
+        if current_pos == None:
+            current_pos = len(sequence) 
+        if current_pos != None:
+            stop = find_stop(stop_regex, sequence, current_pos)
+            # print("stop",current_pos)
+            if stop != None:
+                if stop - current_pos > min_gap:
+                    # print("good size")
+                    if has_shine_dalgarno(shine_regex, sequence, current_pos, max_shine_dalgarno_distance):
+                        # print("has_shine_dalgarno")
+                        predgene.append([current_pos,stop])
+                        current_pos = stop + 3 + min_gap
+                    else:
+                        current_pos += 1
+                else:
+                    current_pos += 1
+            else:
+                current_pos += 1
+    return predgene
+                
 
 
 def write_genes_pos(predicted_genes_file: Path, probable_genes: List[List[int]]) -> None:
@@ -122,13 +168,20 @@ def write_genes_pos(predicted_genes_file: Path, probable_genes: List[List[int]])
     :param probable_genes: List of [start, stop] position of each predicted genes.
     """
     try:
-        with predicted_genes_file.open("wt") as predict_genes:
+        with open(predicted_genes_file, "w") as predict_genes:
             predict_genes_writer = csv.writer(predict_genes, delimiter=",")
             predict_genes_writer.writerow(["Start", "Stop"])
-            predict_genes_writer.writerows(probable_genes)
+            print(probable_genes)
+            for pos in probable_genes:
+                # print(pos)
+                # print("test")
+                predict_genes_writer.writerows(pos)
     except IOError:
         sys.exit("Error cannot open {}".format(predicted_genes_file))
 
+    # with open(predicted_genes_file, 'w', newline='') as f:
+    #     writer = csv.writer(f, delimiter=",")
+    #     writer.writerows(probable_genes)
 
 def write_genes(fasta_file: Path, sequence: str, probable_genes: List[List[int]], sequence_rc: str, 
                 probable_genes_comp: List[List[int]]):
@@ -182,8 +235,25 @@ def main() -> None: # pragma: no cover
     #AGGA ou GGAGG 
     shine_regex = re.compile('A?G?GAGG|GGAG|GG.{1}GG')
     # Arguments
-    args = get_arguments()
+    # args = get_arguments()
     # Let us do magic in 5' to 3'
+    
+    fastasequence = read_fasta("data/listeria.fna")
+    # print(re.search(fastasequence, "\n"))
+    # print(fastasequence[::-1])
+    
+    pred5 = predict_genes(fastasequence, start_regex, stop_regex, shine_regex, min_gene_len = 10, max_shine_dalgarno_distance = 50, min_gap = 5)
+    reversesequence = reverse_complement(fastasequence)
+
+    # print(re.search(fastasequence, "\\n"))
+    pred3r = predict_genes(reversesequence, start_regex, stop_regex, shine_regex, min_gene_len = 10, max_shine_dalgarno_distance = 50, min_gap = 5)
+    pred3 = []
+    for pred in pred3r:
+        pred3.append([pred[1],pred[0]])
+    all_pred = pred5 + pred3
+    all_pred = sorted(all_pred, key=lambda pos: pos[0])
+    print(all_pred)
+    # write_genes_pos("data/predict_gene.csv", all_pred)
     
     # Don't forget to uncomment !!!
     # Call these function in the order that you want
