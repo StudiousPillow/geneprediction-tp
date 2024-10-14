@@ -7,6 +7,7 @@ import textwrap
 from re import Pattern
 from pathlib import Path
 from typing import List, Union, Optional
+
 from textwrap import fill
 
 def isfile(path: str) -> Path:  # pragma: no cover
@@ -93,12 +94,13 @@ def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None
     :return: (int) If exist, position of the stop codon. Otherwise None. 
     """
     
-    matchobj = stop_regex.findall(sequence,  start)
+    matchobj = stop_regex.finditer(sequence,  start)
     if matchobj==None:
         return(None)
     for match in matchobj:
-        
-    return(matchobj.span()[0])
+        if (match.span()[0]-start)%3 == 0:
+            return(match.span()[0])
+    return(None)
 
 
 def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shine_dalgarno_distance: int) -> bool:
@@ -112,7 +114,7 @@ def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shin
     """
     startidx = start - max_shine_dalgarno_distance
     endidx = start - 6
-    if start<0:
+    if startidx<0:
         return(False)
     if endidx>len(sequence)-1:
         endidx = len(sequence)-1
@@ -120,6 +122,8 @@ def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shin
     if matchobj == None:
         return(False)
     else:
+        print(matchobj, startidx, endidx, start)
+        print(sequence)
         return(True)
 
 
@@ -238,13 +242,10 @@ def main() -> None: # pragma: no cover
     # args = get_arguments()
     # Let us do magic in 5' to 3'
     
-    seq_with_stop = "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA"
-    seq_without_stop = seq_with_stop[:-3]
-    res_stop = find_stop(stop_regex, seq_with_stop, 3)
-    res_no_stop = find_stop(stop_regex, seq_without_stop, 3)
-    print(res_stop, res_no_stop)
-    print(find_stop(stop_regex, "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA",3))
-    
+    seq_without_sd = "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA"
+    seq_with_sd = "AGGAGGTAACTCAAACC" + seq_without_sd
+    seq_with_sd_too_far = "AGGAGGTAACTCAAACCGG" + seq_without_sd
+    print(has_shine_dalgarno(shine_regex, seq_with_sd_too_far, 12,16))
     
     
     # fastasequence = read_fasta("data/listeria.fna")
